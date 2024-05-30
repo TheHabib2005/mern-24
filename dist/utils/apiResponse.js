@@ -6,6 +6,7 @@ const apiResponse = (message, statusCode, data) => {
         success: true,
         statusCode,
         data: data,
+        message,
     };
 };
 exports.apiResponse = apiResponse;

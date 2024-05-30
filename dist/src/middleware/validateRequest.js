@@ -11,6 +11,7 @@ const validateRequest = (schema) => (req, res, next) => {
         if (e instanceof zod_1.ZodError) {
             return res.status(400).json(e.errors.map((err) => {
                 return {
+                    success: false,
                     field: err.path[0],
                     message: err.message,
                 };

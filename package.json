@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx tsc && node ./dist/server.js",
     "build": "npx tsc",
-    "dev": "nodemon"
+    "dev": "nodemon && npx tsc",
+    "add": "npx tsc && git add ."
   },
   "keywords": [],
   "author": "",
