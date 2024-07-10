@@ -1,7 +1,8 @@
 import express, { NextFunction, Request, Response } from "express";
+import { conncetToDb } from "./config/dbConncet";
 
 const app = express();
-// conncetToDb();
+conncetToDb();
 
 let port = 8000;
 app.listen(port, () => {
