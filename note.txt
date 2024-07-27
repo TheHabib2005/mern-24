@@ -3,3 +3,20 @@
     // "build": "npx tsc",
     // "dev": "nodemon && npx tsc",
     // "add": "npx tsc && git add ."
+
+      const user = await User.findById(user_id);
+         if(!user){
+             return res.status(404).json({
+                 message: "User not found"
+             });
+         }
+         // generate a verification code
+         const verificationCode = Math.floor(100000 + Math.random() * 900000);
+         // save the verification code in the user document
+         user.verificationCode = verificationCode;
+         await user.save();
+         // send the verification code to the user via email or SMS
+         //...
+         return res.status(200).json({
+             message: "Verification code sent successfully"
+         });
