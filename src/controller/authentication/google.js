@@ -4,21 +4,21 @@ import jwt from "jsonwebtoken";
 const googleLoginColtroller = async (req, res) => {
   let userInfo = await req.body;
   let { email, username, profilePicture,password } = userInfo;
-  const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-      expiresIn: "2d",
+  const generateToken = (userData) => {
+    return jwt.sign({ userData }, process.env.JWT_SECRET, {
+      expiresIn: "10m",
     });
   };
   try {
     let findUser = await User.findOne({ email: email, provider: "google" });
 
     if (findUser) {
-      const token = generateToken(findUser._id);
+      const token = generateToken(findUser);
 
       res.cookie("auth-token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 2 * 24 * 60 * 60 * 1000, // 2 days
+        maxAge: 10 * 60 * 1000,
       });
       return res.status(201).json({
         success: true,
@@ -45,12 +45,12 @@ const googleLoginColtroller = async (req, res) => {
         //send email notification
 
       
-        const token = generateToken(savedUser._id);
+        const token = generateToken(savedUser);
 
         res.cookie("auth-token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          maxAge: 2 * 24 * 60 * 60 * 1000, // 2 days
+          maxAge: 10 * 60 * 1000,
         });
       
         return res

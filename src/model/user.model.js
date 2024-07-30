@@ -1,15 +1,22 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
-const cartSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: String,
-      required: true,
-    },
+const cartItemSchema = new mongoose.Schema({
+  productId: {
+    type:String,
+    required: true,
   },
-  { timestamps: true }
-);
+  quantity: { type: Number, required: true, default: 1 },
+});
+const wishlistItemSchema = new mongoose.Schema({
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+});
+
+
 
 const userModel = new mongoose.Schema({
   username: {
@@ -42,33 +49,13 @@ const userModel = new mongoose.Schema({
     type: String,
     default: "https://cdn-icons-png.flaticon.com/512/1053/1053244.png",
   },
-  cart: {
-    items: [{
-      productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',
-        required: true
-      },
-      quantity: {
-        type: Number,
-        required: true,
-        default: 1
-      }
-    }]
-  },
+  cart: [cartItemSchema],
 
-  
-  wishlist: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-    }
-  ],
+  wishlist: [wishlistItemSchema],
 });
 
-
-userModel.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+userModel.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
 
   try {
     const salt = await bcrypt.genSalt(10); // Correct way to generate salt
