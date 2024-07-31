@@ -70,3 +70,25 @@ app.get("/products/all", async (req, res) => {
     return res.status(500).send("Error fetching data");
   }
 });
+
+
+
+app.get("/products/:id", async (req, res) => {
+  let {id} = req.params
+  try {
+    // const data = await Product.find({});
+
+    let cacheData = await client.get(id)
+
+    if(cacheData){
+      return res.json(cacheData)
+    }
+
+    let data = await Product.findById(id);
+    await client.set(id, data);
+    return res.status(200).json(data);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send("Error fetching data");
+  }
+});
