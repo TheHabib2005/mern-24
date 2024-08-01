@@ -7,6 +7,8 @@ import googleLoginColtroller from "./src/controller/authentication/google.js";
 import dbConnect from "./src/config/dbConnect.js";
 import cookieParser from "cookie-parser";
 import NodeCache from "node-cache";
+
+const cache = new NodeCache();
 import {
   CheckIsValidCode,
   GetVerificationCode,
@@ -16,14 +18,19 @@ import Product from "./src/model/product.model.js";
 
 import User from "./src/model/user.model.js";
 
-// const redisClient = new Redis(
-//   "redis://default:AeM6AAIjcDEyYWE0YzJlZmYxYTk0ODdmYTc4ZWE0MjQyNjExYzE0MXAxMA@stable-ape-58170.upstash.io:6379"
-// );
+const redisClient = new Redis(
+  "rediss://default:AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA@amused-newt-40709.upstash.io:6379"
+);
+
+// console.log(redisClient);
 
 const app = express();
 
 dotenv.config();
-
+// const redisClient = new Redis("rediss://default:********@amused-newt-40709.upstash.io:6379", {
+//   password: "AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA",
+// });
+// Replace with your frontend URL
 const FRONTEND_URL = "https://hamida-me.vercel.app";
 
 // Configure CORS options
@@ -44,51 +51,132 @@ app.listen(PORT, () => {
   console.log("server listening on" + PORT);
 });
 
+app.get("/products", (req, res) => {
+  res.json();
+});
 
 app.post("/user/sign-up", signupController);
 app.post("/user/sign-in", signInController);
 app.post("/user/google-login", googleLoginColtroller);
 app.post("/user/get-verification-code", GetVerificationCode);
 app.post("/user/user-verification", CheckIsValidCode);
-const client = new NodeCache({ stdTTL: 0 }); 
 
 app.get("/products/all", async (req, res) => {
+
+
   try {
-    // const data = await Product.find({});
-
-    let cacheData = await client.get("data")
-
-    if(cacheData){
-      return res.json(cacheData)
+//     const cachedData = cache.get("products");
+//  console.log("cachedData", cachedData);
+    // Check if data is in Redis cache
+    let cachedData = await redisClient.getex("product-data");
+    let parseData = JSON.parse(cachedData)
+    if (cachedData) {
+      return res.status(200).json(parseData);
     }
 
-    let data = await Product.find({});
-    await client.set('data', data);
+    // If not in cache, fetch from MongoDB
+
+    const data = await Product.find({});
+    console.log("db fetch");
+
+    // Cache the data in Redis
+    // Cache the data in Redis
+    redisClient.setex("product-data", 36000, JSON.stringify(data)); // Cache for 1 hour
     return res.status(200).json(data);
   } catch (error) {
     console.log(error);
     return res.status(500).send("Error fetching data");
   }
 });
-
-
-
 app.get("/products/:id", async (req, res) => {
-  let {id} = req.params
+  const id = req.params.id;
+
+
   try {
-    // const data = await Product.find({});
-
-    let cacheData = await client.get(id)
-
-    if(cacheData){
-      return res.json(cacheData)
+    // Check if data is in Redis cache
+    // const cachedData = cache.get(id);
+    let cachedData = await redisClient.getex("product-data") || redisClient.getex(id);
+    let parseData = JSON.parse(cachedData)
+    if(cachedData){
+      const productIndex = parseData.findIndex(item => item._id.toString() === id);
+      console.log(productIndex);
+      if(productIndex > -1){
+        return res.status(200).json(parseData[productIndex]);
+      }
+      return res.status(404).send("Product not found in cache");
     }
 
-    let data = await Product.findById(id);
-    await client.set(id, data);
+    if (cachedData) {
+      return res.status(200).json(parseData);
+    }
+
+    // If not in cache, fetch from MongoDB
+
+    const data = await Product.find({ _id: id });
+
+    redisClient.setex(id, 36000, JSON.stringify(data)); // Cache for 1 hour
+
     return res.status(200).json(data);
   } catch (error) {
     console.log(error);
     return res.status(500).send("Error fetching data");
   }
 });
+
+app.post("/add-to-cart", async (req, res) => {
+  const { productId, userId, quantity } = req.body;
+
+  try {
+    let newCart = {
+      userId,
+      items: [{ productId, quantity: 1 }],
+    };
+    let data = await User.findById({ _id: userId });
+    data.cart = newCart;
+    // await data.save();
+    return res.status(200).json({ data, message: "Product added to cart" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send("Error adding to cart");
+  }
+});
+
+app.get("/products/search/:searchQuery", async (req, res) => {
+  const searchQuery = req.params.searchQuery;
+
+  try {
+    // Check if data is in Redis cache
+    const cachedData = await redisClient.get(searchQuery);
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    let result = await Product.find({
+      $and: [
+        {
+          $or: [
+            { title: { $regex: searchQuery, $options: "i" } }, // case insensitive
+            { description: { $regex: searchQuery, $options: "i" } },
+            { tags: { $elemMatch: { $regex: searchQuery, $options: "i" } } },
+            { brand: { $regex: searchQuery, $options: "i" } },
+          ],
+        },
+        //  brand: { $regex: "brand name", $options: "i" } }  // case insensitive
+      ],
+    });
+
+    // Cache the data in Redis
+    redisClient.setex(searchQuery, 3600, JSON.stringify(result)); // Cache for 1 hour
+
+    return res.status(200).json(result);
+  } catch (error) {}
+});
+
+
+app.get("/cart", async (req, res) => {
+
+  let cachedData = await redisClient.getex("product-data");
+  let data = JSON.parse(cachedData)
+
+  return res.json(data)
+})
