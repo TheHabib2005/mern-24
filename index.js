@@ -31,20 +31,18 @@ dotenv.config();
 //   password: "AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA",
 // });
 // Replace with your frontend URL
-const FRONTEND_URL = "https://slidehub.vercel.app";
 
-// Configure CORS options
-const corsOptions = {
-  origin: FRONTEND_URL,
-  methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed methods
-  credentials: true, // Allow credentials (cookies, authorization headers, TLS client certificates)
-};
+app.use(cors({
+  origin: true, // Reflects the request origin
+  credentials: true, // Allows cookies to be sent with the requests
+}));
 
-app.use(cors(corsOptions));
+
+
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-console.log(process.env.JWT_SECRICTKEY);
 let PORT = process.env.PORT || 8000;
 dbConnect();
 app.listen(PORT, () => {
@@ -54,7 +52,17 @@ app.listen(PORT, () => {
 app.get("/products", (req, res) => {
   res.json();
 });
+app.get('/set-cookie', (req, res) => {
+  // Set a cookie named 'myCookie' with value 'cookieValue'
+  res.cookie('myCookie', 'cookieValue', {
+    maxAge: 900000, // Expires after 15 minutes (900,000 milliseconds)
+    httpOnly: true, // Cookie accessible only by the server
+    secure: true, // Cookie will only be sent over HTTPS
+    sameSite: 'strict' // Restrict cookie to same site requests
+  });
 
+  res.send('Cookie has been set!');
+});
 app.post("/user/sign-up", signupController);
 app.post("/user/sign-in", signInController);
 app.post("/user/google-login", googleLoginColtroller);
