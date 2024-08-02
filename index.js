@@ -31,7 +31,7 @@ dotenv.config();
 //   password: "AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA",
 // });
 // Replace with your frontend URL
-const FRONTEND_URL = "https://hamida-me.vercel.app";
+const FRONTEND_URL = "https://slidehub.vercel.app";
 
 // Configure CORS options
 const corsOptions = {
