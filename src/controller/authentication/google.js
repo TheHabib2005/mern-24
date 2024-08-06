@@ -1,83 +1,100 @@
 import User from "../../model/user.model.js";
 import jwt from "jsonwebtoken";
-
+import cookie from "cookie"
 const googleLoginColtroller = async (req, res) => {
-  // let userInfo = await req.body;
-  // let { email, username, profilePicture,password } = userInfo;
-  // const generateToken = (userData) => {
-  //   return jwt.sign({ userData }, process.env.JWT_SECRET, {
-  //     expiresIn: "10m",
-  //   });
-  // };
-  // try {
-  //   let findUser = await User.findOne({ email: email, provider: "google" });
+  let userInfo = await req.body;
+  let { email, username, profilePicture,password } = userInfo;
 
-  //   if (findUser) {
-  //     const token = generateToken(findUser);
+  try {
+    let findUser = await User.findOne({ email: email, provider: "google" });
 
-  //     res.cookie("auth-token", token, {
-  //       httpOnly: true,
-  //       secure: process.env.NODE_ENV === "production",
-  //       maxAge: 10 * 60 * 1000,
-  //     });
-  //     return res.status(201).json({
-  //       success: true,
-  //       message: "User Signed in successfully",
-  //     });
-  //   } else {
-  //     let findUser = await User.findOne({ email: email });
-  //     if (findUser) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: "this email is already used by another user",
-  //       });
-  //     } else {
-  //       const newUser = await User.create({
-  //         username,
-  //         email,
-  //         password,
-  //         profilePicture: profilePicture,
-  //         isVerified: true,
-  //         provider: "google",
-  //         verificationCode: null,
-  //       });
-  //       let savedUser = await newUser.save();
-  //       //send email notification
+    if (findUser) {
+      const token = generateToken(findUser);
+
+      const serializedCookie = cookie.serialize('auth-token', token, {
+        httpOnly: false,
+        secure: true, // Make sure your site is served over HTTPS
+        sameSite: 'None',
+        maxAge: 3600, // 1 hour
+        path: '/',    // Ensure cookie is accessible across the site
+      });
+    
+      res.setHeader('Set-Cookie', serializedCookie);
+      return res.status(201).json({
+        success: true,
+        message: "User Signed in successfully",
+      });
+    } else {
+      let findUser = await User.findOne({ email: email });
+      if (findUser) {
+        return res.status(400).json({
+          success: false,
+          message: "this email is already used by another user",
+        });
+      } else {
+        const newUser = await User.create({
+          username,
+          email,
+          password,
+          profilePicture: profilePicture,
+          isVerified: true,
+          provider: "google",
+          verificationCode: null,
+        });
+        let savedUser = await newUser.save();
+        //send email notification
 
       
-  //       const token = generateToken(savedUser);
+        const token = generateToken(savedUser);
 
-  //       res.cookie("auth-token", token, {
-  //         httpOnly: true,
-  //         secure: process.env.NODE_ENV === "production",
-  //         maxAge: 10 * 60 * 1000,
-  //       });
+        const serializedCookie = cookie.serialize('auth-token', token, {
+          httpOnly: false,
+          secure: true, // Make sure your site is served over HTTPS
+          sameSite: 'None',
+          maxAge: 3600, // 1 hour
+          path: '/',    // Ensure cookie is accessible across the site
+        });
       
-  //       return res
-  //         .status(200)
-  //         .json({
-  //           success: true,
-  //           message: "User Signed in successfully",
-  //           user_token: token,
-  //         })
+        res.setHeader('Set-Cookie', serializedCookie);
+      
+        return res
+          .status(200)
+          .json({
+            success: true,
+            message: "User Signed in successfully",
+            user_token: token,
+          })
          
-  //     }
-  //   }
-  // } catch (error) {
-  //   return res.status(400).json({
-  //     success: false,
-  //     message: "Failed to Signed",
-  //   });
-  // }
-  res.cookie("auth-token", "d6rtvrrrrrrrrrrrrrrrrrrrrrrrrrrrr", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 10 * 60 * 1000,
-  });
-  return res.status(201).json({
-    success: true,
-    message: "User Signed in successfully",
-  });
+      }
+    }
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: "Failed to Signed",
+    });
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };
 
 export default googleLoginColtroller;

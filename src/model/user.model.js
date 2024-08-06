@@ -52,6 +52,7 @@ const userModel = new mongoose.Schema({
   cart: [cartItemSchema],
 
   wishlist: [wishlistItemSchema],
+  orders: [],
 });
 
 userModel.pre("save", async function (next) {

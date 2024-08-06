@@ -17,6 +17,7 @@ import Redis from "ioredis";
 import Product from "./src/model/product.model.js";
 
 import User from "./src/model/user.model.js";
+import Order from "./src/model/order.model.js";
 
 const redisClient = new Redis(
   "rediss://default:AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA@amused-newt-40709.upstash.io:6379"
@@ -27,13 +28,10 @@ const redisClient = new Redis(
 const app = express();
 
 dotenv.config();
-// const redisClient = new Redis("rediss://default:********@amused-newt-40709.upstash.io:6379", {
-//   password: "AZ8FAAIjcDExNDRmNDM4OTAyOTg0MzMwOTdjYzEyMjAyOTQwNDcwMHAxMA",
-// });
-// Replace with your frontend URL
+
 
 app.use(cors({
-  origin: true, // Reflects the request origin
+  origin: true , // Reflects the request origin
   credentials: true, // Allows cookies to be sent with the requests
 }));
 
@@ -73,22 +71,14 @@ app.get("/products/all", async (req, res) => {
 
 
   try {
-//     const cachedData = cache.get("products");
-//  console.log("cachedData", cachedData);
-    // Check if data is in Redis cache
     let cachedData = await redisClient.getex("product-data");
     let parseData = JSON.parse(cachedData)
     if (cachedData) {
+      console.log("data get from redis: ");
       return res.status(200).json(parseData);
     }
-
-    // If not in cache, fetch from MongoDB
-
     const data = await Product.find({});
     console.log("db fetch");
-
-    // Cache the data in Redis
-    // Cache the data in Redis
     redisClient.setex("product-data", 36000, JSON.stringify(data)); // Cache for 1 hour
     return res.status(200).json(data);
   } catch (error) {
@@ -99,36 +89,36 @@ app.get("/products/all", async (req, res) => {
 app.get("/products/:id", async (req, res) => {
   const id = req.params.id;
 
-
   try {
-    // Check if data is in Redis cache
-    // const cachedData = cache.get(id);
-    let cachedData = await redisClient.getex("product-data") || redisClient.getex(id);
+    let cachedData = await redisClient.getex("product-data");
+    let singlePorduct = await redisClient.getex(id.toString());
     let parseData = JSON.parse(cachedData)
-    if(cachedData){
-      const productIndex = parseData.findIndex(item => item._id.toString() === id);
-      console.log(productIndex);
-      if(productIndex > -1){
-        return res.status(200).json(parseData[productIndex]);
-      }
-      return res.status(404).send("Product not found in cache");
+
+    if(singlePorduct){
+      console.log("single product redis");
+      return res.status(200).json(JSON.parse(singlePorduct));
     }
 
     if (cachedData) {
-      return res.status(200).json(parseData);
+      const productIndex = parseData.findIndex(item => item._id.toString() === id);
+      console.log(productIndex);
+      if(productIndex > -1){
+        console.log("redis");
+        return res.status(200).json(parseData[productIndex]);
+      }
+    }else{
+      console.log("db fetch");
+      const data = await Product.findById(id);
+      redisClient.setex(id.toString(), 36000, JSON.stringify(data));
+      return res.status(200).json(data);
     }
-
-    // If not in cache, fetch from MongoDB
-
-    const data = await Product.find({ _id: id });
-
-    redisClient.setex(id, 36000, JSON.stringify(data)); // Cache for 1 hour
-
-    return res.status(200).json(data);
   } catch (error) {
-    console.log(error);
-    return res.status(500).send("Error fetching data");
+    
   }
+
+
+
+  
 });
 
 app.post("/add-to-cart", async (req, res) => {
@@ -154,9 +144,10 @@ app.get("/products/search/:searchQuery", async (req, res) => {
 
   try {
     // Check if data is in Redis cache
-    const cachedData = await redisClient.get(searchQuery);
+    let cachedData = await redisClient.getex("product-data") ;
+    let parseData = JSON.parse(cachedData)
     if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
+      return res.status(200).json(JSON.parse(parseData));
     }
 
     let result = await Product.find({
@@ -174,8 +165,7 @@ app.get("/products/search/:searchQuery", async (req, res) => {
     });
 
     // Cache the data in Redis
-    redisClient.setex(searchQuery, 3600, JSON.stringify(result)); // Cache for 1 hour
-
+    redisClient.setex(searchQuery, 36000, JSON.stringify(data)); 
     return res.status(200).json(result);
   } catch (error) {}
 });
@@ -187,4 +177,80 @@ app.get("/cart", async (req, res) => {
   let data = JSON.parse(cachedData)
 
   return res.json(data)
+})
+
+
+
+
+app.get("/logout", (req,res) =>{
+     res.clearCookie("auth-token");
+     res.status(200).json({
+      success: true,
+      message:"user Logout successfully"
+     })
+})
+
+
+
+
+app.post("/order/create",async (req,res) =>{
+  try {
+    const { userId,orderId, products, totalAmount, paymentMethod,deliveryInformation ,orderStatus} = req.body;
+
+
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Create the order
+    const newOrder = new Order({  userId,orderId, products, totalAmount, paymentMethod,deliveryInformation,orderStatus });
+    await newOrder.save();
+
+    // Update the user's record with the new order
+    
+    user.orders.push(newOrder);
+    await user.save();
+
+    res.status(201).json({ success: true, order: newOrder });
+  } catch (error) {
+    console.log(error);
+    
+    res.status(500).json({ success: false, message: 'Server Error', error });
+  }
+
+})
+
+
+
+app.get('/orders/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.status(200).json({ success: true, orders: user.orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server Error', error });
+  }
+});
+
+app.get("/orders" , async(req, res) => {
+  try {
+    let orders = await Order.find({});
+    return res.json({ success: true, orders});
+  } catch (error) {
+    
+  }
+})
+
+app.get("/order/:id" , async(req, res) => {
+  let orderId = req.params.id
+  try {
+    let order = await Order.find({orderId:orderId});
+    return res.json({ success: true, order});
+  } catch (error) {
+    
+  }
 })
