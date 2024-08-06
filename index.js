@@ -68,8 +68,7 @@ app.post("/user/get-verification-code", GetVerificationCode);
 app.post("/user/user-verification", CheckIsValidCode);
 
 app.get("/products/all", async (req, res) => {
-
-
+  console.log(req.query);
   try {
     let cachedData = await redisClient.getex("product-data");
     let parseData = JSON.parse(cachedData)
