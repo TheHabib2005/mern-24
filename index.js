@@ -143,12 +143,29 @@ app.get("/products/search/:searchQuery", async (req, res) => {
   const searchQuery = req.params.searchQuery;
 
   try {
-    // Check if data is in Redis cache
-    let cachedData = await redisClient.getex("product-data") ;
-    let parseData = JSON.parse(cachedData)
-    if (cachedData) {
-      return res.status(200).json(JSON.parse(parseData));
+
+
+
+    let searchCacheData = await redisClient.getex(searchQuery);
+    let searchDataParse = JSON.parse(searchCacheData)
+    if(searchCacheData){
+      console.log("searchCacheData product redis");
+      return res.status(200).json(searchDataParse);
     }
+
+
+    // Check if data is in Redis cache
+    // let cachedData = await redisClient.getex("product-data") ;
+    // let parseData = JSON.parse(cachedData)
+    // if (cachedData) {
+    //   console.log("cache cached data");
+      
+    //   const filterSearchData = parseData.filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    //   item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    //   item.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    //   item.brand.toLowerCase().includes(searchQuery.toLowerCase()))
+    //   return res.status(200).json(filterSearchData);
+    // }
 
     let result = await Product.find({
       $and: [
@@ -160,12 +177,12 @@ app.get("/products/search/:searchQuery", async (req, res) => {
             { brand: { $regex: searchQuery, $options: "i" } },
           ],
         },
-        //  brand: { $regex: "brand name", $options: "i" } }  // case insensitive
       ],
     });
+console.log("db fetch");
 
     // Cache the data in Redis
-    redisClient.setex(searchQuery, 36000, JSON.stringify(data)); 
+    redisClient.setex(searchQuery, 36000, JSON.stringify(result)); 
     return res.status(200).json(result);
   } catch (error) {}
 });
