@@ -88,17 +88,18 @@ app.get("/products/all", async (req, res) => {
 });
 app.get("/products/:id", async (req, res) => {
   const id = req.params.id;
-
   try {
-    let cachedData = await redisClient.getex("product-data");
-    let singlePorduct = await redisClient.getex(id.toString());
-    let parseData = JSON.parse(cachedData)
 
+
+    let singlePorduct = await redisClient.getex(id.toString());
     if(singlePorduct){
       console.log("single product redis");
       return res.status(200).json(JSON.parse(singlePorduct));
     }
 
+
+    let cachedData = await redisClient.getex("product-data");
+    let parseData = JSON.parse(cachedData)
     if (cachedData) {
       const productIndex = parseData.findIndex(item => item._id.toString() === id);
       console.log(productIndex);
@@ -113,12 +114,11 @@ app.get("/products/:id", async (req, res) => {
       return res.status(200).json(data);
     }
   } catch (error) {
-    
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching data",
+    });
   }
-
-
-
-  
 });
 
 app.post("/add-to-cart", async (req, res) => {
